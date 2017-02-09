@@ -41,14 +41,25 @@ tape('write same segment multiple times', function (t) {
   var producer = hk.Producer(archive)
 
   producer.write('topic', 'foo', 'bar')
-  producer.write('topic', 'foo', 'baz')
+  // wait one lingering interval (10ms)
+  setTimeout(() => {
+    producer.write('topic', 'foo', 'baz')
+  }, 100)
 
+  var firstFlush = true
+
+  // should flush twice
   producer.on('flush', function (flushed) {
-    t.same(flushed, 128)
+    if (firstFlush) {
+      t.same(flushed, 64)
+      firstFlush = false
+      return
+    }
 
+    t.same(flushed, 128)
     archive.list((err, entries) => {
       t.error(err)
-      t.same(entries.map(e => e.name), ['/topic/0.index', '/topic/0.log'])
+      t.same(Array.from(new Set(entries.map(e => e.name))), ['/topic/0.index', '/topic/0.log'])
       var consumer = hk.Consumer(archive)
       consumer.get('topic', 0, (err, msg) => {
         t.error(err)
