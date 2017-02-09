@@ -18,8 +18,8 @@ tape('replicate', function (t) {
     var archive2 = drive2.createArchive(archive.key)
     var sw2 = swarm(archive2)
 
-    var producer2 = hk.Producer(archive2)
-    producer2.get('topic', 0, (err, msg) => {
+    var consumer = hk.Consumer(archive2)
+    consumer.get('topic', 0, (err, msg) => {
       t.error(err)
       t.equal(msg.offset, 0)
       t.same(msg.payload, {k: 'foo', v: 'bar'})

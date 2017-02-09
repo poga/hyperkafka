@@ -82,11 +82,12 @@ tape('get', function (t) {
     producer._writeSegment('topic', (err) => {
       t.error(err)
 
-      producer.get('topic', 0, (err, msg) => {
+      var consumer = hk.Consumer(archive)
+      consumer.get('topic', 0, (err, msg) => {
         t.error(err)
         t.equal(msg.offset, 0)
         t.same(msg.payload, {k: 'foo', v: 'bar'})
-        producer.get('topic', 1, (err, msg) => {
+        consumer.get('topic', 1, (err, msg) => {
           t.error(err)
           t.equal(msg.offset, 1)
           t.same(msg.payload, {k: 'foo', v: 'baz'})

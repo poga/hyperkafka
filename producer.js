@@ -75,27 +75,3 @@ Producer.prototype._nextSegment = function (topic) {
   this.topics[topic] = { log: new Buffer(0), index: [] }
 }
 
-Producer.prototype.get = function (topic, offset, cb) {
-  this._archive.list((err, entries) => {
-    if (err) return cb(err)
-
-    var segment = 0
-    entries.forEach(e => {
-      // FIXME because we don't have random-accessable format yet. we don't use index here
-      if (e.name.endsWith('.log')) {
-        var segmentOffset = +path.basename(e.name, '.log')
-        if (segmentOffset <= offset && segmentOffset >= segment) {
-          segment = segmentOffset
-        }
-      }
-    })
-
-    this._archive.createFileReadStream(`/${topic}/${segment}.log`)
-      .pipe(ndjson.parse())
-      .on('data', d => {
-        if (d.offset === offset) {
-          cb(null, d)
-        }
-      })
-  })
-}
