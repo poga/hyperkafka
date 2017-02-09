@@ -4,7 +4,7 @@ const tape = require('tape')
 const hk = require('.')
 const collect = require('collect-stream')
 
-tape('test', function (t) {
+tape('write', function (t) {
   var drive = hyperdrive(memdb())
   var archive = drive.createArchive()
   var broker = hk.Broker(archive)
@@ -28,6 +28,41 @@ tape('test', function (t) {
         })
 
         t.end()
+      })
+    })
+  })
+})
+
+tape('next segment', function (t) {
+  var drive = hyperdrive(memdb())
+  var archive = drive.createArchive()
+  var broker = hk.Broker(archive)
+
+  broker.write('topic', 'foo', 'bar')
+  broker._writeSegment('topic', (err) => {
+    t.error(err)
+    broker._nextSegment('topic')
+    broker.write('topic', 'foo', 'baz')
+
+    broker._writeSegment('topic', (err) => {
+      t.error(err)
+
+      archive.list((err, entries) => {
+        t.error(err)
+        t.same(entries.map(e => e.name), ['/topic/0.index', '/topic/0.log', '/topic/1.index', '/topic/1.log'])
+        collect(archive.createFileReadStream('/topic/1.index'), (err, data) => {
+          t.error(err)
+          t.same(JSON.parse(data), {offset: 1, pos: 0})
+
+          collect(archive.createFileReadStream('/topic/1.log'), (err, data) => {
+            t.error(err)
+            var message = JSON.parse(data)
+            t.same(message.offset, 1)
+            t.same(message.payload, {k: 'foo', v: 'baz'})
+          })
+
+          t.end()
+        })
       })
     })
   })

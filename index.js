@@ -38,7 +38,6 @@ Broker.prototype.write = function (topic, key, value) {
 
 // really write segment files into hyperdrive
 Broker.prototype._writeSegment = function (topic, cb) {
-  console.log(this.topics)
   var self = this
   writeIndex()
 
@@ -48,7 +47,6 @@ Broker.prototype._writeSegment = function (topic, cb) {
     source.stop()
     var idx = self._archive.createFileWriteStream(`/${topic}/${self._currentSegmentOffset}.index`)
     pump(source, idx, err => {
-      console.log('index')
       if (err) return cb(err)
 
       writeLog()
@@ -56,7 +54,6 @@ Broker.prototype._writeSegment = function (topic, cb) {
   }
 
   function writeLog () {
-    console.log('log')
     var source = new BufStream()
     source.put(self.topics[topic].log)
     source.stop()
