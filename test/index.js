@@ -3,7 +3,6 @@ const memdb = require('memdb')
 const tape = require('tape')
 const hk = require('..')
 const collect = require('collect-stream')
-const ndjson = require('ndjson')
 
 tape('write', function (t) {
   var drive = hyperdrive(memdb())
