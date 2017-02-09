@@ -1,7 +1,6 @@
 const pump = require('pump')
 const BufStream = require('stream-buffers').ReadableStreamBuffer
 const path = require('path')
-const collect = require('collect-stream')
 const ndjson = require('ndjson')
 
 module.exports = {Broker}
@@ -31,7 +30,6 @@ Broker.prototype.write = function (topic, key, value) {
   this.topics[topic].log = Buffer.concat([this.topics[topic].log, buf])
 
   var idx = {offset: this._offset, pos: this._currentPosition}
-  console.log(this.topics[topic].index)
   this.topics[topic].index.push(idx)
 
   this._offset += 1

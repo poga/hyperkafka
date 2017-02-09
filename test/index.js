@@ -1,7 +1,7 @@
 const hyperdrive = require('hyperdrive')
 const memdb = require('memdb')
 const tape = require('tape')
-const hk = require('.')
+const hk = require('..')
 const collect = require('collect-stream')
 
 tape('write', function (t) {
