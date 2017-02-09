@@ -7,10 +7,10 @@ const collect = require('collect-stream')
 tape('write', function (t) {
   var drive = hyperdrive(memdb())
   var archive = drive.createArchive()
-  var broker = hk.Broker(archive)
+  var producer = hk.Producer(archive)
 
-  broker.write('topic', 'foo', 'bar')
-  broker._writeSegment('topic', (err) => {
+  producer.write('topic', 'foo', 'bar')
+  producer._writeSegment('topic', (err) => {
     t.error(err)
 
     archive.list((err, entries) => {
@@ -36,15 +36,15 @@ tape('write', function (t) {
 tape('next segment', function (t) {
   var drive = hyperdrive(memdb())
   var archive = drive.createArchive()
-  var broker = hk.Broker(archive)
+  var producer = hk.Producer(archive)
 
-  broker.write('topic', 'foo', 'bar')
-  broker._writeSegment('topic', (err) => {
+  producer.write('topic', 'foo', 'bar')
+  producer._writeSegment('topic', (err) => {
     t.error(err)
-    broker._nextSegment('topic')
-    broker.write('topic', 'foo', 'baz')
+    producer._nextSegment('topic')
+    producer.write('topic', 'foo', 'baz')
 
-    broker._writeSegment('topic', (err) => {
+    producer._writeSegment('topic', (err) => {
       t.error(err)
 
       archive.list((err, entries) => {
@@ -71,22 +71,22 @@ tape('next segment', function (t) {
 tape('get', function (t) {
   var drive = hyperdrive(memdb())
   var archive = drive.createArchive()
-  var broker = hk.Broker(archive)
+  var producer = hk.Producer(archive)
 
-  broker.write('topic', 'foo', 'bar')
-  broker._writeSegment('topic', (err) => {
+  producer.write('topic', 'foo', 'bar')
+  producer._writeSegment('topic', (err) => {
     t.error(err)
-    broker._nextSegment('topic')
-    broker.write('topic', 'foo', 'baz')
+    producer._nextSegment('topic')
+    producer.write('topic', 'foo', 'baz')
 
-    broker._writeSegment('topic', (err) => {
+    producer._writeSegment('topic', (err) => {
       t.error(err)
 
-      broker.get('topic', 0, (err, msg) => {
+      producer.get('topic', 0, (err, msg) => {
         t.error(err)
         t.equal(msg.offset, 0)
         t.same(msg.payload, {k: 'foo', v: 'bar'})
-        broker.get('topic', 1, (err, msg) => {
+        producer.get('topic', 1, (err, msg) => {
           t.error(err)
           t.equal(msg.offset, 1)
           t.same(msg.payload, {k: 'foo', v: 'baz'})
