@@ -1,13 +1,13 @@
 {
   "name": "hyperkafka",
   "version": "0.0.1",
-  "description": "",
+  "description": "decentralized, interplanetary messaging platform",
   "main": "index.js",
   "scripts": {
     "test": "tape test/*.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["hyperdrive", "decentralized", "kafka", "messaging"],
+  "author": "Poga Po<poga.bahamut@gmail.com>",
   "license": "MIT",
   "devDependencies": {
     "hyperdiscovery": "^1.1.0",
