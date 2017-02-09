@@ -3,6 +3,7 @@ const memdb = require('memdb')
 const tape = require('tape')
 const hk = require('..')
 const collect = require('collect-stream')
+const ndjson = require('ndjson')
 
 tape('write', function (t) {
   var drive = hyperdrive(memdb())
@@ -35,7 +36,33 @@ tape('write', function (t) {
 })
 
 tape('write same segment multiple times', function (t) {
-  t.end()
+  var drive = hyperdrive(memdb())
+  var archive = drive.createArchive()
+  var producer = hk.Producer(archive)
+
+  producer.write('topic', 'foo', 'bar')
+  producer.write('topic', 'foo', 'baz')
+
+  producer.on('flush', function (flushed) {
+    t.same(flushed, 128)
+
+    archive.list((err, entries) => {
+      t.error(err)
+      t.same(entries.map(e => e.name), ['/topic/0.index', '/topic/0.log'])
+      var consumer = hk.Consumer(archive)
+      consumer.get('topic', 0, (err, msg) => {
+        t.error(err)
+        t.equal(msg.offset, 0)
+        t.same(msg.payload, {k: 'foo', v: 'bar'})
+        consumer.get('topic', 1, (err, msg) => {
+          t.error(err)
+          t.equal(msg.offset, 1)
+          t.same(msg.payload, {k: 'foo', v: 'baz'})
+          t.end()
+        })
+      })
+    })
+  })
 })
 
 tape('next segment', function (t) {
