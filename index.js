@@ -2,6 +2,7 @@ const pump = require('pump')
 const BufStream = require('stream-buffers').ReadableStreamBuffer
 const path = require('path')
 const collect = require('collect-stream')
+const ndjson = require('ndjson')
 
 module.exports = {Broker}
 
@@ -20,17 +21,18 @@ function Broker (archive) {
 
 Broker.prototype.write = function (topic, key, value) {
   if (!this.topics[topic]) {
-    this.topics[topic] = { log: new Buffer(0), index: new Buffer(0) }
+    this.topics[topic] = { log: new Buffer(0), index: [] }
   }
 
-  // TODO better serializer
+  // TODO use random accessable format
   var payload = {k: key, v: value}
   var timestamp = Date.now()
-  var buf = new Buffer(JSON.stringify({offset: this._offset, ts: timestamp, payload}))
+  var buf = new Buffer(JSON.stringify({offset: this._offset, ts: timestamp, payload}) + '\n')
   this.topics[topic].log = Buffer.concat([this.topics[topic].log, buf])
-  // FIXME: use ndjson
-  var idx = new Buffer(JSON.stringify({offset: this._offset, pos: this._currentPosition}))
-  this.topics[topic].index = Buffer.concat([this.topics[topic].index, idx])
+
+  var idx = {offset: this._offset, pos: this._currentPosition}
+  console.log(this.topics[topic].index)
+  this.topics[topic].index.push(idx)
 
   this._offset += 1
   this._currentPosition += buf.length
@@ -42,11 +44,11 @@ Broker.prototype._writeSegment = function (topic, cb) {
   writeIndex()
 
   function writeIndex () {
-    var source = new BufStream()
-    source.put(self.topics[topic].index)
-    source.stop()
+    var serializer = ndjson.serialize()
+    self.topics[topic].index.forEach(i => serializer.write(i))
+    serializer.end()
     var idx = self._archive.createFileWriteStream(`/${topic}/${self._currentSegmentOffset}.index`)
-    pump(source, idx, err => {
+    pump(serializer, idx, err => {
       if (err) return cb(err)
 
       writeLog()
@@ -71,7 +73,7 @@ Broker.prototype._nextSegment = function (topic) {
   this._currentPosition = 0
 
   // reset topic buffers
-  this.topics[topic] = { log: new Buffer(0), index: new Buffer(0) }
+  this.topics[topic] = { log: new Buffer(0), index: [] }
 }
 
 Broker.prototype.get = function (topic, offset, cb) {
@@ -80,18 +82,21 @@ Broker.prototype.get = function (topic, offset, cb) {
 
     var segment = 0
     entries.forEach(e => {
-      if (e.name.endsWith('.index')) {
-        var segmentOffset = +path.basename(e.name, '.index')
-        if (segmentOffset < offset && segmentOffset >= segment) {
+      // FIXME because we don't have random-accessable format yet. we don't use index here
+      if (e.name.endsWith('.log')) {
+        var segmentOffset = +path.basename(e.name, '.log')
+        if (segmentOffset <= offset && segmentOffset >= segment) {
           segment = segmentOffset
         }
       }
     })
 
-    collect(archive.createFileReadStream(`/${topic}/${segment}.index`), (err, data) => {
-      if (err) return cb(err)
-
-
-    })
+    this._archive.createFileReadStream(`/${topic}/${segment}.log`)
+      .pipe(ndjson.parse())
+      .on('data', d => {
+        if (d.offset === offset) {
+          cb(null, d)
+        }
+      })
   })
 }

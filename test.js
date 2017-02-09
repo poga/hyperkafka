@@ -67,3 +67,32 @@ tape('next segment', function (t) {
     })
   })
 })
+
+tape('get', function (t) {
+  var drive = hyperdrive(memdb())
+  var archive = drive.createArchive()
+  var broker = hk.Broker(archive)
+
+  broker.write('topic', 'foo', 'bar')
+  broker._writeSegment('topic', (err) => {
+    t.error(err)
+    broker._nextSegment('topic')
+    broker.write('topic', 'foo', 'baz')
+
+    broker._writeSegment('topic', (err) => {
+      t.error(err)
+
+      broker.get('topic', 0, (err, msg) => {
+        t.error(err)
+        t.equal(msg.offset, 0)
+        t.same(msg.payload, {k: 'foo', v: 'bar'})
+        broker.get('topic', 1, (err, msg) => {
+          t.error(err)
+          t.equal(msg.offset, 1)
+          t.same(msg.payload, {k: 'foo', v: 'baz'})
+          t.end()
+        })
+      })
+    })
+  })
+})
