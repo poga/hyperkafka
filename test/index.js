@@ -10,8 +10,9 @@ tape('write', function (t) {
   var producer = hk.Producer(archive)
 
   producer.write('topic', 'foo', 'bar')
-  producer._writeSegment('topic', (err) => {
-    t.error(err)
+
+  producer.on('flush', function (size) {
+    t.same(size, 64)
 
     archive.list((err, entries) => {
       t.error(err)
@@ -33,19 +34,23 @@ tape('write', function (t) {
   })
 })
 
+tape('write same segment multiple times', function (t) {
+  t.end()
+})
+
 tape('next segment', function (t) {
   var drive = hyperdrive(memdb())
   var archive = drive.createArchive()
-  var producer = hk.Producer(archive)
+  var producer = hk.Producer(archive, {segmentSize: 0})
 
   producer.write('topic', 'foo', 'bar')
-  producer._writeSegment('topic', (err) => {
-    t.error(err)
-    producer._nextSegment('topic')
+  producer.once('flush', function (flushed) {
+    t.same(flushed, 64)
+
     producer.write('topic', 'foo', 'baz')
 
-    producer._writeSegment('topic', (err) => {
-      t.error(err)
+    producer.once('flush', function (flushed) {
+      t.same(flushed, 64)
 
       archive.list((err, entries) => {
         t.error(err)

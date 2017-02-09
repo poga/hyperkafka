@@ -1,22 +1,30 @@
 const pump = require('pump')
+const events = require('events')
+const inherits = require('inherits')
 const BufStream = require('stream-buffers').ReadableStreamBuffer
-const path = require('path')
 const ndjson = require('ndjson')
+const _ = require('lodash')
 
 module.exports = Producer
 
-function Producer (archive) {
-  if (!(this instanceof Producer)) return new Producer(archive)
+function Producer (archive, opts) {
+  if (!(this instanceof Producer)) return new Producer(archive, opts)
+  events.EventEmitter.call(this)
 
+  this._opts = Object.assign({}, {linger: 10, segmentSize: 1024 * 1024}, opts)
   this._archive = archive
 
-  // buffering, lingering
+  // lingering
+  this._writeSegment = _.debounce(this._writeSegmentNow, this._opts.linger)
+
   this.topics = {}
   // manage offset
   this._offset = 0
   this._currentSegmentOffset = 0
   this._currentPosition = 0
 }
+
+inherits(Producer, events.EventEmitter)
 
 Producer.prototype.write = function (topic, key, value) {
   if (!this.topics[topic]) {
@@ -35,10 +43,12 @@ Producer.prototype.write = function (topic, key, value) {
 
   this._offset += 1
   this._currentPosition += buf.length
+
+  this._writeSegment(topic)
 }
 
 // really write segment files into hyperdrive
-Producer.prototype._writeSegment = function (topic, cb) {
+Producer.prototype._writeSegmentNow = function (topic, cb) {
   var self = this
   writeIndex()
 
@@ -62,7 +72,14 @@ Producer.prototype._writeSegment = function (topic, cb) {
     pump(source, idx, err => {
       if (err) return cb(err)
 
-      cb()
+      var flushed = self.topics[topic].log.length
+      if (self.topics[topic].log.length >= self._opts.segmentSize) {
+        self._nextSegment(topic)
+      }
+
+      self.emit('flush', flushed)
+
+      if (cb) return cb()
     })
   }
 }
@@ -74,4 +91,3 @@ Producer.prototype._nextSegment = function (topic) {
   // reset topic buffers
   this.topics[topic] = { log: new Buffer(0), index: [] }
 }
-
