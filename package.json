@@ -6,7 +6,12 @@
   "scripts": {
     "test": "tape test/*.js"
   },
-  "keywords": ["hyperdrive", "decentralized", "kafka", "messaging"],
+  "keywords": [
+    "hyperdrive",
+    "decentralized",
+    "kafka",
+    "messaging"
+  ],
   "author": "Poga Po<poga.bahamut@gmail.com>",
   "license": "MIT",
   "devDependencies": {
@@ -17,9 +22,12 @@
   },
   "dependencies": {
     "collect-stream": "^1.2.1",
+    "hyperdrive-read": "^1.1.0",
     "lodash": "^4.17.4",
     "ndjson": "^1.5.0",
+    "protocol-buffers": "^3.2.1",
     "pump": "^1.0.2",
-    "stream-buffers": "^3.0.1"
+    "stream-buffers": "^3.0.1",
+    "uint64be": "^2.0.1"
   }
 }

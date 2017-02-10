@@ -2,8 +2,12 @@ const pump = require('pump')
 const events = require('events')
 const inherits = require('inherits')
 const BufStream = require('stream-buffers').ReadableStreamBuffer
-const ndjson = require('ndjson')
 const _ = require('lodash')
+const protobuf = require('protocol-buffers')
+const fs = require('fs')
+const uint64be = require('uint64be')
+
+const messages = protobuf(fs.readFileSync('index.proto'))
 
 module.exports = Producer
 
@@ -27,19 +31,25 @@ function Producer (archive, opts) {
 inherits(Producer, events.EventEmitter)
 
 Producer.prototype.write = function (topic, key, value) {
-  if (!this.topics[topic]) {
-    this.topics[topic] = { log: new Buffer(0), index: [] }
-  }
+  if (!this.topics[topic]) this._initTopic(topic)
 
-  // TODO use random accessable format
-  var payload = {k: key, v: value}
+  // prepare message
   var timestamp = Date.now()
-  var buf = new Buffer(JSON.stringify({offset: this._offset, ts: timestamp, payload}) + '\n')
+  var payload = {k: key, v: value}
+  var buf = messages.Message.encode({
+    offset: this._offset,
+    timestamp: uint64be.encode(timestamp),
+    payload: new Buffer(JSON.stringify(payload))
+  })
   this.topics[topic].log = Buffer.concat([this.topics[topic].log, buf])
 
-  // TODO use random accessable format
-  var idx = {offset: this._offset, pos: this._currentPosition}
-  this.topics[topic].index.push(idx)
+  // prepare index
+  var idxBuf = messages.Index.encode({
+    offset: this._offset,
+    position: this._currentPosition,
+    size: buf.length
+  })
+  this.topics[topic].index = Buffer.concat([this.topics[topic].index, idxBuf])
 
   this._offset += 1
   this._currentPosition += buf.length
@@ -53,11 +63,11 @@ Producer.prototype._writeSegmentNow = function (topic, cb) {
   writeIndex()
 
   function writeIndex () {
-    var serializer = ndjson.serialize()
-    self.topics[topic].index.forEach(i => serializer.write(i))
-    serializer.end()
-    var idx = self._archive.createFileWriteStream(`/${topic}/${self._currentSegmentOffset}.index`)
-    pump(serializer, idx, err => {
+    var source = new BufStream()
+    source.put(self.topics[topic].index)
+    source.stop()
+    var out = self._archive.createFileWriteStream(`/${topic}/${self._currentSegmentOffset}.index`)
+    pump(source, out, err => {
       if (err) return cb(err)
 
       writeLog()
@@ -68,8 +78,8 @@ Producer.prototype._writeSegmentNow = function (topic, cb) {
     var source = new BufStream()
     source.put(self.topics[topic].log)
     source.stop()
-    var idx = self._archive.createFileWriteStream(`/${topic}/${self._currentSegmentOffset}.log`)
-    pump(source, idx, err => {
+    var out = self._archive.createFileWriteStream(`/${topic}/${self._currentSegmentOffset}.log`)
+    pump(source, out, err => {
       if (err) return cb(err)
 
       var flushed = self.topics[topic].log.length
@@ -89,5 +99,9 @@ Producer.prototype._nextSegment = function (topic) {
   this._currentPosition = 0
 
   // reset topic buffers
-  this.topics[topic] = { log: new Buffer(0), index: [] }
+  this._initTopic(topic)
+}
+
+Producer.prototype._initTopic = function (topic) {
+  this.topics[topic] = { log: new Buffer(0), index: new Buffer(0) }
 }

@@ -1,5 +1,12 @@
 const path = require('path')
-const ndjson = require('ndjson')
+const collect = require('collect-stream')
+const protobuf = require('protocol-buffers')
+const fs = require('fs')
+const read = require('hyperdrive-read')
+
+const messages = protobuf(fs.readFileSync('index.proto'))
+
+const INDEX_ITEM_SIZE = 15
 
 module.exports = Consumer
 
@@ -18,23 +25,36 @@ Consumer.prototype.get = function (topic, offset, cb) {
   this._archive.list((err, entries) => {
     if (err) return cb(err)
 
-    var segment = 0
-    entries.forEach(e => {
-      // FIXME because we don't have random-accessable format yet. we don't use index here
-      if (e.name.endsWith('.log')) {
-        var segmentOffset = +path.basename(e.name, '.log')
-        if (segmentOffset <= offset && segmentOffset >= segment) {
-          segment = segmentOffset
+    var index
+    var indexOffset = 0
+    for (var i = 0; i < entries.length; i++) {
+      var e = entries[i]
+      if (e.name.endsWith('.index')) {
+        let entryOffset = +path.basename(e.name, '.index')
+        if (entryOffset <= offset && (e.length / INDEX_ITEM_SIZE) >= (offset - entryOffset + 1)) {
+          index = e
+          indexOffset = entryOffset
+          break
         }
       }
-    })
+    }
 
-    this._archive.createFileReadStream(`/${topic}/${segment}.log`)
-      .pipe(ndjson.parse())
-      .on('data', d => {
-        if (d.offset === offset) {
-          cb(null, d)
-        }
+    // read index
+    var start = (offset - indexOffset) * INDEX_ITEM_SIZE
+    var buf = new Buffer(INDEX_ITEM_SIZE)
+    read(this._archive, index, buf, 0, INDEX_ITEM_SIZE, start, (err, bytesRead, buffer) => {
+      if (err) return cb(err)
+
+      var indexItem = messages.Index.decode(buf)
+
+      // read message
+      var msgBuf = new Buffer(indexItem.size) // size is the corresponding message sze
+      read(this._archive, `/${topic}/${indexOffset}.log`, msgBuf, 0, indexItem.size, indexItem.position, (err, bytesRead, buffer) => {
+        if (err) return cb(err)
+
+        cb(null, messages.Message.decode(buffer))
       })
+    })
   })
 }
+
