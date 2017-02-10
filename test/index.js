@@ -113,3 +113,28 @@ tape('next segment', function (t) {
   })
 })
 
+tape('subscribe', function (t) {
+  var drive = hyperdrive(memdb())
+  var archive = drive.createArchive()
+  var producer = hk.Producer(archive)
+
+  producer.write('topic', 'foo', 'bar')
+
+  var consumer = hk.Consumer(archive)
+  var i = 0
+  var check = [{k: 'foo', v: 'bar'}, {k: 'foo', v: 'baz'}]
+  consumer.subscribe('topic', 0, (err, msg) => {
+    t.error(err)
+    t.same(JSON.parse(msg.payload), check[i])
+    i += 1
+
+    if (i === 2) t.end()
+  })
+  setTimeout(() => {
+    producer.write('topic', 'foo', 'baz')
+  }, 200)
+
+  producer.once('flush', (flushed) => {
+    t.equal(flushed, 37)
+  })
+})
