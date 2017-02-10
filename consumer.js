@@ -1,9 +1,7 @@
 const path = require('path')
-const collect = require('collect-stream')
 const protobuf = require('protocol-buffers')
 const fs = require('fs')
 const read = require('hyperdrive-read')
-const _ = require('lodash')
 
 const messages = protobuf(fs.readFileSync('index.proto'))
 
@@ -60,16 +58,10 @@ Consumer.prototype.get = function (topic, offset, cb) {
   })
 }
 
-// should do random accessable format first so we can know how many message is in a segment
-// without reading it. (via the size of index). so we know whether the offset we want is in the segment
 Consumer.prototype.subscribe = function (topic, start, cb) {
   var currentOffset = start
   var self = this
 
-  // 1. offset is monotonlically increse
-  // 2. we can find the first segment to read with offset 0
-  // 3. when we received a new segment whos init offset is next of our current offset, we switch to that segment
-  // 4. when we received a segment update on our current segment, we reload segment to get new data and update our current offset
   var list
   function _read () {
     self.get(topic, currentOffset, (err, msg) => {
