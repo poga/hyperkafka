@@ -22,7 +22,7 @@ tape('replicate', function (t) {
     consumer.get('topic', 0, (err, msg) => {
       t.error(err)
       t.equal(msg.offset, 0)
-      t.same(msg.payload, {k: 'foo', v: 'bar'})
+      t.same(JSON.parse(msg.payload), {k: 'foo', v: 'bar'})
       sw1.close()
       sw2.close()
       t.end()
