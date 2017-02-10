@@ -105,9 +105,8 @@ tape('next segment', function (t) {
             var message = messages.Message.decode(data)
             t.same(message.offset, 1)
             t.same(JSON.parse(message.payload), {k: 'foo', v: 'baz'})
+            t.end()
           })
-
-          t.end()
         })
       })
     })
