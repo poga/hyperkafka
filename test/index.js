@@ -138,3 +138,20 @@ tape('subscribe', function (t) {
     t.equal(flushed, 37)
   })
 })
+
+tape('subscribe future offset', function (t) {
+  var drive = hyperdrive(memdb())
+  var archive = drive.createArchive()
+  var producer = hk.Producer(archive)
+
+  producer.write('topic', 'foo', 'bar')
+
+  var consumer = hk.Consumer(archive)
+  consumer.subscribe('topic', 2, (err, msg) => {
+    t.error(err)
+    t.same(JSON.parse(msg.payload), {k: 'foo', v: 'bar3'})
+    t.end()
+  })
+  producer.write('topic', 'foo', 'bar2')
+  producer.write('topic', 'foo', 'bar3')
+})
