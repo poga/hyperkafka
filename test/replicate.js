@@ -23,9 +23,15 @@ tape('replicate', function (t) {
       t.error(err)
       t.equal(msg.offset, 0)
       t.same(JSON.parse(msg.payload), {k: 'foo', v: 'bar'})
-      sw1.close()
-      sw2.close()
-      t.end()
+
+      sw1.close(function () {
+        t.ok(1, 'sw1 closed')
+        sw2.close(function () {
+          t.ok(1, 'sw2 closed')
+          t.end()
+        })
+      })
     })
   })
 })
+
