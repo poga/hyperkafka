@@ -15,11 +15,6 @@ function Consumer (archive) {
   if (!(this instanceof Consumer)) return new Consumer(archive)
 
   this._archive = archive
-
-  // manage offset
-  this._offset = 0
-  this._currentSegmentOffset = 0
-  this._currentPosition = 0
 }
 
 Consumer.prototype.get = function (topic, offset, cb) {
