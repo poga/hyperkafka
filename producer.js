@@ -11,11 +11,16 @@ const messages = protobuf(fs.readFileSync('index.proto'))
 
 module.exports = Producer
 
+const DEFAULT = {
+  segmentSize: 5 * 1024 * 1024, // 5 MB
+  linger: 10 // milliseconds
+}
+
 function Producer (archive, opts) {
   if (!(this instanceof Producer)) return new Producer(archive, opts)
   events.EventEmitter.call(this)
 
-  this._opts = Object.assign({}, {linger: 10, segmentSize: 1024 * 1024}, opts)
+  this._opts = Object.assign({}, DEFAULT, opts)
   this._archive = archive
 
   // lingering
