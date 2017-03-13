@@ -291,17 +291,12 @@ tape('createReadStream', function (t) {
   producer.once('flush', (flushed, topic) => {
     var consumer = hk.Consumer(archive)
     var rs = consumer.createReadStream('topic', 0)
-    rs.once('data', msg => {
-      t.same(msg.offset, 0)
-      t.same(msg.payload.toString(), 'foo')
+
+    var check = ['foo', 'bar']
+    rs.on('data', msg => {
+      t.same(msg.payload.toString(), check[msg.offset])
+      if (msg.offset === 1) t.end()
     })
     producer.write('topic', 'bar')
-    producer.once('flush', () => {
-      rs.once('data', msg => {
-        t.same(msg.offset, 1)
-        t.same(msg.payload.toString(), 'bar')
-        t.end()
-      })
-    })
   })
 })
