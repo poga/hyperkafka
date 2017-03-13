@@ -5,6 +5,7 @@ const hk = require('..')
 const collect = require('collect-stream')
 const fs = require('fs')
 const protobuf = require('protocol-buffers')
+const uint64be = require('uint64be')
 
 const messages = protobuf(fs.readFileSync('index.proto'))
 
@@ -221,7 +222,7 @@ tape('multi-topic topic not exists', function (t) {
   var archive = drive.createArchive()
   var producer = hk.Producer(archive)
 
-  producer.write('topic', 'foo', 'bar')
+  producer.write('topic', 'foo')
 
   var consumer = hk.Consumer(archive)
   producer.on('flush', () => {
@@ -295,4 +296,21 @@ tape('createReadStream', function (t) {
   })
   producer.write('topic', 'foo')
   producer.write('topic', 'bar')
+})
+
+tape('timestamp', function (t) {
+  var drive = hyperdrive(memdb())
+  var archive = drive.createArchive()
+  var producer = hk.Producer(archive)
+
+  var consumer = hk.Consumer(archive)
+  var rs = consumer.createReadStream('topic', 0)
+
+  var ts = Date.now()
+  rs.once('data', msg => {
+    t.same(msg.payload.toString(), 'foo')
+    t.same(uint64be.decode(msg.timestamp), ts)
+    t.end()
+  })
+  producer.write('topic', 'foo', uint64be.encode(ts))
 })
