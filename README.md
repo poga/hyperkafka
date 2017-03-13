@@ -49,7 +49,7 @@ You can specify timestamp for the message. The timestamp should be a `uint64be` 
 
 Create a new `Consumer` with a [hyperdrive](https://github.com/mafintosh/hyperdrive) archive.
 
-#### `c.get(topic, offset, cb(err, message))
+#### `c.get(topic, offset, cb(err, message))`
 
 Get a message on a topic with specified offset. Returns error if there's no message with given offset.
 
