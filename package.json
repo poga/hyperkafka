@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "collect-stream": "^1.2.1",
+    "highland": "^2.10.2",
     "hyperdrive-read": "^1.1.0",
     "lodash": "^4.17.4",
     "protocol-buffers": "^3.2.1",

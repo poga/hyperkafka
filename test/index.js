@@ -279,3 +279,29 @@ tape('multi-topic consumer', function (t) {
     })
   })
 })
+
+tape('createReadStream', function (t) {
+  var drive = hyperdrive(memdb())
+  var archive = drive.createArchive()
+  var producer = hk.Producer(archive)
+
+  producer.write('topic', 'foo')
+
+  // wait topic2 flushed
+  producer.once('flush', (flushed, topic) => {
+    var consumer = hk.Consumer(archive)
+    var rs = consumer.createReadStream('topic', 0)
+    rs.once('data', msg => {
+      t.same(msg.offset, 0)
+      t.same(msg.payload.toString(), 'foo')
+    })
+    producer.write('topic', 'bar')
+    producer.once('flush', () => {
+      rs.once('data', msg => {
+        t.same(msg.offset, 1)
+        t.same(msg.payload.toString(), 'bar')
+        t.end()
+      })
+    })
+  })
+})

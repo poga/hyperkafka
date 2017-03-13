@@ -2,6 +2,8 @@ const path = require('path')
 const protobuf = require('protocol-buffers')
 const fs = require('fs')
 const read = require('hyperdrive-read')
+const EventEmitter = require('events')
+const highland = require('highland')
 
 const messages = protobuf(fs.readFileSync('index.proto'))
 
@@ -89,4 +91,15 @@ Consumer.prototype.subscribe = function (topic, start, cb) {
   }
 
   _read()
+}
+
+Consumer.prototype.createReadStream = function (topic, start) {
+  var ev = new EventEmitter()
+  this.subscribe(topic, start, (err, msg) => {
+    if (err) return ev.emit('error', err)
+
+    ev.emit('data', msg)
+  })
+
+  return highland('data', ev)
 }
