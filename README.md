@@ -60,6 +60,28 @@ Get a message on a topic with specified offset. Returns error if there's no mess
 Get a readable stream with all messages in a topic after given offset.
 
 
+## FAQ
+
+#### This is just append-only log! Why not just use hypercore?
+
+Overhead, batching, and topic.
+
+If we simply push every single message as a seperated block into hypercore. The overhead is big: 144 bytes per message for 100000 messages. Therefore we need batching.
+
+Also we need random-accessable message within a topic. We combine hyperdrive's built-in index and kafka storage format to achieve it.
+
+#### This is basic messaging! How about MQTT/RabbitMQ/ZeroMQ...or any other message queue?
+
+Message queues usually don't preserve message history. I want a messaging platform which can automatically archive all message in a decentralized environment.
+
+#### Should I replace my apache kafka cluster with hyperkafka?
+
+No. They have different goal and use cases. hyperkafka use the name because its internal storage is inspired by apache kafka, also it sounds cool.
+
+If you want a private, highly-scalable messaging platform, use apache kafka.
+
+If you want to store and share public realtime data, try hyperkafka. You might like it.
+
 ## License
 
 The MIT License
