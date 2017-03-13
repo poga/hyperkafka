@@ -28,7 +28,7 @@ Consumer.prototype.get = function (topic, offset, cb) {
     var indexOffset = 0
     for (var i = 0; i < entries.length; i++) {
       var e = entries[i]
-      if (e.name.endsWith('.index')) {
+      if (e.name.startsWith(`/${topic}/`) && e.name.endsWith('.index')) {
         let entryOffset = +path.basename(e.name, '.index')
         if (entryOffset <= offset && (e.length / INDEX_ITEM_SIZE) >= (offset - entryOffset + 1)) {
           index = e

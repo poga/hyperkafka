@@ -23,14 +23,8 @@ function Producer (archive, opts) {
   this._opts = Object.assign({}, DEFAULT, opts)
   this._archive = archive
 
-  // lingering
-  this._writeSegment = _.debounce(this._writeSegmentNow, this._opts.linger)
-
   this.topics = {}
   // manage offset
-  this._offset = 0
-  this._currentSegmentOffset = 0
-  this._currentPosition = 0
 }
 
 inherits(Producer, events.EventEmitter)
@@ -42,7 +36,7 @@ Producer.prototype.write = function (topic, key, value) {
   var timestamp = Date.now()
   var payload = {k: key, v: value}
   var buf = messages.Message.encode({
-    offset: this._offset,
+    offset: this.topics[topic].offset,
     timestamp: uint64be.encode(timestamp),
     payload: new Buffer(JSON.stringify(payload))
   })
@@ -50,63 +44,71 @@ Producer.prototype.write = function (topic, key, value) {
 
   // prepare index
   var idxBuf = messages.Index.encode({
-    offset: this._offset,
-    position: this._currentPosition,
+    offset: this.topics[topic].offset,
+    position: this.topics[topic].currentPosition,
     size: buf.length
   })
   this.topics[topic].index = Buffer.concat([this.topics[topic].index, idxBuf])
 
-  this._offset += 1
-  this._currentPosition += buf.length
+  this.topics[topic].offset += 1
+  this.topics[topic].currentPosition += buf.length
 
-  this._writeSegment(topic)
+  this.topics[topic].write()
 }
 
 // really write segment files into hyperdrive
-Producer.prototype._writeSegmentNow = function (topic, cb) {
+Producer.prototype._writer = function (topic) {
   var self = this
-  writeIndex()
+  return () => {
+    writeIndex()
 
-  function writeIndex () {
-    var source = new BufStream()
-    source.put(self.topics[topic].index)
-    source.stop()
-    var out = self._archive.createFileWriteStream(`/${topic}/${self._currentSegmentOffset}.index`)
-    pump(source, out, err => {
-      if (err) return cb(err)
+    function writeIndex () {
+      var source = new BufStream()
+      source.put(self.topics[topic].index)
+      source.stop()
+      var out = self._archive.createFileWriteStream(`/${topic}/${self.topics[topic].currentSegmentOffset}.index`)
+      pump(source, out, err => {
+        if (err) return self.emit('error', err)
 
-      writeLog()
-    })
-  }
+        writeLog()
+      })
+    }
 
-  function writeLog () {
-    var source = new BufStream()
-    source.put(self.topics[topic].log)
-    source.stop()
-    var out = self._archive.createFileWriteStream(`/${topic}/${self._currentSegmentOffset}.log`)
-    pump(source, out, err => {
-      if (err) return cb(err)
+    function writeLog () {
+      var source = new BufStream()
+      source.put(self.topics[topic].log)
+      source.stop()
+      var out = self._archive.createFileWriteStream(`/${topic}/${self.topics[topic].currentSegmentOffset}.log`)
+      pump(source, out, err => {
+        if (err) return self.emit('error', err)
 
-      var flushed = self.topics[topic].log.length
-      if (self.topics[topic].log.length >= self._opts.segmentSize) {
-        self._nextSegment(topic)
-      }
+        var flushed = self.topics[topic].log.length
+        if (self.topics[topic].log.length >= self._opts.segmentSize) {
+          self._nextSegment(topic)
+        }
 
-      self.emit('flush', flushed)
-
-      if (cb) return cb()
-    })
+        self.emit('flush', flushed, topic)
+      })
+    }
   }
 }
 
 Producer.prototype._nextSegment = function (topic) {
-  this._currentSegmentOffset = this._offset
-  this._currentPosition = 0
+  this.topics[topic].currentSegmentOffset = this.topics[topic].offset
+  this.topics[topic].currentPosition = 0
 
-  // reset topic buffers
-  this._initTopic(topic)
+  // reset topic buffers and index, but preserve current offset
+  this.topics[topic].log = new Buffer(0)
+  this.topics[topic].index = new Buffer(0)
 }
 
 Producer.prototype._initTopic = function (topic) {
-  this.topics[topic] = { log: new Buffer(0), index: new Buffer(0) }
+  this.topics[topic] = {
+    log: new Buffer(0),
+    index: new Buffer(0),
+    write: _.debounce(this._writer(topic), this._opts.linger),
+    offset: 0,
+    currentSegmentOffset: 0,
+    currentPosition: 0
+  }
 }

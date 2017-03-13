@@ -11,9 +11,7 @@ tape('replicate', function (t) {
   var producer = hk.Producer(archive)
 
   producer.write('topic', 'foo', 'bar')
-  producer._writeSegment('topic', (err) => {
-    t.error(err)
-
+  producer.on('flush', () => {
     var drive2 = hyperdrive(memdb())
     var archive2 = drive2.createArchive(archive.key)
     var sw2 = swarm(archive2)

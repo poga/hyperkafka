@@ -155,3 +155,67 @@ tape('subscribe future offset', function (t) {
   producer.write('topic', 'foo', 'bar2')
   producer.write('topic', 'foo', 'bar3')
 })
+
+tape('multi-topic topic not exists', function (t) {
+  var drive = hyperdrive(memdb())
+  var archive = drive.createArchive()
+  var producer = hk.Producer(archive)
+
+  producer.write('topic', 'foo', 'bar')
+
+  var consumer = hk.Consumer(archive)
+  producer.on('flush', () => {
+    consumer.get('topic2', 0, (err, msg) => {
+      t.same(err.message, 'offset not found')
+      t.end()
+    })
+  })
+})
+
+tape('multi-topic producer', function (t) {
+  var drive = hyperdrive(memdb())
+  var archive = drive.createArchive()
+  var producer = hk.Producer(archive)
+
+  producer.write('topic', 'foo', 'bar')
+  producer.write('topic2', 'foo', 'baz')
+
+  var checks = {
+    topic: false,
+    topic2: false
+  }
+  producer.on('flush', (flushed, topic) => {
+    if (checks[topic]) return t.fail(`${topic} should not flush twice`)
+    checks[topic] = true
+    t.same(flushed, 37)
+
+    if (checks.topic && checks.topic2) t.end()
+  })
+})
+
+tape('multi-topic consumer', function (t) {
+  var drive = hyperdrive(memdb())
+  var archive = drive.createArchive()
+  var producer = hk.Producer(archive)
+
+  producer.write('topic', 'foo', 'bar')
+  producer.write('topic2', 'foo', 'baz')
+
+  // wait topic2 flushed
+  producer.on('flush', (flushed, topic) => {
+    if (topic !== 'topic2') return
+
+    var consumer = hk.Consumer(archive)
+    consumer.get('topic', 0, (err, msg) => {
+      t.error(err)
+      t.same(msg.offset, 0)
+      t.same(JSON.parse(msg.payload), {k: 'foo', v: 'bar'})
+      consumer.get('topic2', 0, (err, msg) => {
+        t.error(err)
+        t.same(msg.offset, 0)
+        t.same(JSON.parse(msg.payload), {k: 'foo', v: 'baz'})
+        t.end()
+      })
+    })
+  })
+})
