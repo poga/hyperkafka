@@ -45,6 +45,8 @@ Append a message to a topic. `message` can be `Buffer`, `String`, or object.
 
 You can specify timestamp for the message. The timestamp should be a `uint64be` buffer because there's no int64 support in javascript. By default it will be current time (`Date.now()`).
 
+### Consumer
+
 #### `c = new Consumer(archive)`
 
 Create a new `Consumer` with a [hyperdrive](https://github.com/mafintosh/hyperdrive) archive.
