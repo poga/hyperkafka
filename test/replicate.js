@@ -10,7 +10,7 @@ tape('replicate', function (t) {
   var sw1 = swarm(archive)
   var producer = hk.Producer(archive)
 
-  producer.write('topic', 'foo', 'bar')
+  producer.write('topic', 'foo')
   producer.on('flush', () => {
     var drive2 = hyperdrive(memdb())
     var archive2 = drive2.createArchive(archive.key)
@@ -20,7 +20,7 @@ tape('replicate', function (t) {
     consumer.get('topic', 0, (err, msg) => {
       t.error(err)
       t.equal(msg.offset, 0)
-      t.same(JSON.parse(msg.payload), {k: 'foo', v: 'bar'})
+      t.same(msg.payload.toString(), 'foo')
 
       sw1.close(function () {
         t.ok(1, 'sw1 closed')

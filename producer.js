@@ -29,16 +29,23 @@ function Producer (archive, opts) {
 
 inherits(Producer, events.EventEmitter)
 
-Producer.prototype.write = function (topic, key, value) {
+Producer.prototype.write = function (topic, msg) {
   if (!this.topics[topic]) this._initTopic(topic)
 
   // prepare message
   var timestamp = Date.now()
-  var payload = {k: key, v: value}
+  var payload
+  if (Buffer.isBuffer(msg)) {
+    payload = msg
+  } else if (typeof msg === 'string') {
+    payload = new Buffer(msg)
+  } else {
+    payload = new Buffer(JSON.stringify(msg))
+  }
   var buf = messages.Message.encode({
     offset: this.topics[topic].offset,
     timestamp: uint64be.encode(timestamp),
-    payload: new Buffer(JSON.stringify(payload))
+    payload: payload
   })
   this.topics[topic].log = Buffer.concat([this.topics[topic].log, buf])
 
