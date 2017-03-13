@@ -1,9 +1,12 @@
 # hyperkafka
 
 ![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg?style=flat-square)
-[![JavaScript Style Guide](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](http://standardjs.com/)
+[![NPM Version](https://img.shields.io/npm/v/hyperkafka.svg?style=flat-square)](https://www.npmjs.com/package/hyperkafka)
+[![JavaScript Style Guide](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat-square)](http://standardjs.com/)
 
 A decentralized messaging platform.
+
+`npm i hyperkafka`
 
 ## Usage
 
@@ -24,7 +27,7 @@ consumer.get('topic', 0, function (err, msg) {
 })
 
 // create a readable stream
-var rs = consumer.createReadStream('topic)
+var rs = consumer.createReadStream('topic')
 rs.on('data', msg => { })
 ```
 
