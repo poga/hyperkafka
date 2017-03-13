@@ -298,6 +298,23 @@ tape('createReadStream', function (t) {
   producer.write('topic', 'bar')
 })
 
+tape('createReadStream offset', function (t) {
+  var drive = hyperdrive(memdb())
+  var archive = drive.createArchive()
+  var producer = hk.Producer(archive)
+
+  var consumer = hk.Consumer(archive)
+  var rs = consumer.createReadStream('topic', 1)
+
+  rs.on('data', msg => {
+    t.same(msg.offset, 1)
+    t.same(msg.payload.toString(), 'bar')
+    t.end()
+  })
+  producer.write('topic', 'foo')
+  producer.write('topic', 'bar')
+})
+
 tape('timestamp', function (t) {
   var drive = hyperdrive(memdb())
   var archive = drive.createArchive()
