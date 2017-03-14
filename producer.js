@@ -6,8 +6,9 @@ const _ = require('lodash')
 const protobuf = require('protocol-buffers')
 const fs = require('fs')
 const uint64be = require('uint64be')
+const path = require('path')
 
-const messages = protobuf(fs.readFileSync('index.proto'))
+const messages = protobuf(fs.readFileSync(path.join(__dirname, 'index.proto')))
 
 module.exports = Producer
 

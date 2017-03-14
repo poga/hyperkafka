@@ -21,6 +21,7 @@ Consumer.prototype.get = function (topic, offset, cb) {
   this._archive.list((err, entries) => {
     if (err) return cb(err)
 
+    // find the index file contains the offset we want
     var index
     var indexOffset = 0
     for (var i = 0; i < entries.length; i++) {
