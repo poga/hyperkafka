@@ -5,7 +5,7 @@ const read = require('hyperdrive-read')
 const EventEmitter = require('events')
 const highland = require('highland')
 
-const messages = protobuf(fs.readFileSync('index.proto'))
+const messages = protobuf(fs.readFileSync(path.join(__dirname, 'index.proto')))
 
 const INDEX_ITEM_SIZE = 15
 
