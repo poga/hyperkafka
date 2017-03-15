@@ -7,6 +7,7 @@ const protobuf = require('protocol-buffers')
 const fs = require('fs')
 const uint64be = require('uint64be')
 const path = require('path')
+const {listTopic} = require('./topic')
 
 const messages = protobuf(fs.readFileSync(path.join(__dirname, 'index.proto')))
 
@@ -24,14 +25,14 @@ function Producer (archive, opts) {
   this._opts = Object.assign({}, DEFAULT, opts)
   this._archive = archive
 
-  this.topics = {}
+  this._topics = {}
   // manage offset
 }
 
 inherits(Producer, events.EventEmitter)
 
 Producer.prototype.write = function (topic, msg, timestamp) {
-  if (!this.topics[topic]) this._initTopic(topic)
+  if (!this._topics[topic]) this._initTopic(topic)
 
   // prepare message
   var ts = timestamp || uint64be.encode(Date.now())
@@ -44,24 +45,24 @@ Producer.prototype.write = function (topic, msg, timestamp) {
     payload = new Buffer(JSON.stringify(msg))
   }
   var buf = messages.Message.encode({
-    offset: this.topics[topic].offset,
+    offset: this._topics[topic].offset,
     timestamp: ts,
     payload: payload
   })
-  this.topics[topic].log = Buffer.concat([this.topics[topic].log, buf])
+  this._topics[topic].log = Buffer.concat([this._topics[topic].log, buf])
 
   // prepare index
   var idxBuf = messages.Index.encode({
-    offset: this.topics[topic].offset,
-    position: this.topics[topic].currentPosition,
+    offset: this._topics[topic].offset,
+    position: this._topics[topic].currentPosition,
     size: buf.length
   })
-  this.topics[topic].index = Buffer.concat([this.topics[topic].index, idxBuf])
+  this._topics[topic].index = Buffer.concat([this._topics[topic].index, idxBuf])
 
-  this.topics[topic].offset += 1
-  this.topics[topic].currentPosition += buf.length
+  this._topics[topic].offset += 1
+  this._topics[topic].currentPosition += buf.length
 
-  this.topics[topic].write()
+  this._topics[topic].write()
 }
 
 // really write segment files into hyperdrive
@@ -72,9 +73,9 @@ Producer.prototype._writer = function (topic) {
 
     function writeIndex () {
       var source = new BufStream()
-      source.put(self.topics[topic].index)
+      source.put(self._topics[topic].index)
       source.stop()
-      var out = self._archive.createFileWriteStream(`/${topic}/${self.topics[topic].currentSegmentOffset}.index`)
+      var out = self._archive.createFileWriteStream(`/${topic}/${self._topics[topic].currentSegmentOffset}.index`)
       pump(source, out, err => {
         if (err) return self.emit('error', err)
 
@@ -84,14 +85,14 @@ Producer.prototype._writer = function (topic) {
 
     function writeLog () {
       var source = new BufStream()
-      source.put(self.topics[topic].log)
+      source.put(self._topics[topic].log)
       source.stop()
-      var out = self._archive.createFileWriteStream(`/${topic}/${self.topics[topic].currentSegmentOffset}.log`)
+      var out = self._archive.createFileWriteStream(`/${topic}/${self._topics[topic].currentSegmentOffset}.log`)
       pump(source, out, err => {
         if (err) return self.emit('error', err)
 
-        var flushed = self.topics[topic].log.length
-        if (self.topics[topic].log.length >= self._opts.segmentSize) {
+        var flushed = self._topics[topic].log.length
+        if (self._topics[topic].log.length >= self._opts.segmentSize) {
           self._nextSegment(topic)
         }
 
@@ -102,16 +103,16 @@ Producer.prototype._writer = function (topic) {
 }
 
 Producer.prototype._nextSegment = function (topic) {
-  this.topics[topic].currentSegmentOffset = this.topics[topic].offset
-  this.topics[topic].currentPosition = 0
+  this._topics[topic].currentSegmentOffset = this._topics[topic].offset
+  this._topics[topic].currentPosition = 0
 
   // reset topic buffers and index, but preserve current offset
-  this.topics[topic].log = new Buffer(0)
-  this.topics[topic].index = new Buffer(0)
+  this._topics[topic].log = new Buffer(0)
+  this._topics[topic].index = new Buffer(0)
 }
 
 Producer.prototype._initTopic = function (topic) {
-  this.topics[topic] = {
+  this._topics[topic] = {
     log: new Buffer(0),
     index: new Buffer(0),
     write: _.debounce(this._writer(topic), this._opts.linger),
@@ -119,4 +120,8 @@ Producer.prototype._initTopic = function (topic) {
     currentSegmentOffset: 0,
     currentPosition: 0
   }
+}
+
+Producer.prototype.topics = function (cb) {
+  listTopic(this._archive, cb)
 }

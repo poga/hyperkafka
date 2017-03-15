@@ -4,6 +4,7 @@ const fs = require('fs')
 const read = require('hyperdrive-read')
 const EventEmitter = require('events')
 const highland = require('highland')
+const {listTopic} = require('./topic')
 
 const messages = protobuf(fs.readFileSync(path.join(__dirname, 'index.proto')))
 
@@ -98,4 +99,8 @@ Consumer.prototype.createReadStream = function (topic, start) {
   })
 
   return highland('data', ev)
+}
+
+Consumer.prototype.topics = function (cb) {
+  listTopic(this._archive, cb)
 }

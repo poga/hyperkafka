@@ -23,7 +23,7 @@ producer.write('topic', 'hello')
 var archive2 = drive.createArchive(archive.key)
 var consumer = hyperkafka.Consumer(archive2)
 consumer.get('topic', 0, function (err, msg) {
-  // msg === {offset: 0, ts: timestamp, payload: 'hello'}
+  // msg === {offset: 0, ts: timestamp, payload: buffer('hello')}
 })
 
 // create a readable stream
@@ -35,15 +35,28 @@ rs.on('data', msg => { })
 
 ### Producer
 
-#### `p = new Producer(archive)`
+#### `p = new Producer(archive, opts)`
 
 Create a new `Producer` with a [hyperdrive](https://github.com/mafintosh/hyperdrive) archive.
+
+Option `opts` includes:
+
+* segmentSize: the file size limit of a single segment.
+* linger: the delay before flushing buffer into hyperdrive
 
 #### `p.write(topic, message, [timestamp])`
 
 Append a message to a topic. `message` can be `Buffer`, `String`, or object.
 
 You can specify timestamp for the message. The timestamp should be a `uint64be` buffer because there's no int64 support in javascript. By default it will be current time (`Date.now()`).
+
+#### `p.topics(cb(err, topics))`
+
+Returns an array of topics
+
+#### `p.on('flush', cb(segmentSize, flushedTopci))
+
+Producer will emit `flush` event when a segment is flushed into hyperdrive.
 
 ### Consumer
 
@@ -59,16 +72,18 @@ Get a message on a topic with specified offset. Returns error if there's no mess
 
 Get a readable stream with all messages in a topic after given offset.
 
+#### `c.topics(cb(err, topics))`
+
+Returns an array of topics
+
 
 ## FAQ
 
 #### This is just append-only log! Why not just use hypercore?
 
-Overhead, batching, and topic.
+Hyperdrive's indexing allows us to query and insert data efficiently.
 
-If we simply push every single message as a seperated block into hypercore. The overhead is big: 144 bytes per message for 100000 messages. Therefore we need batching.
-
-Also we need random-accessable message within a topic. We combine hyperdrive's built-in index and kafka storage format to achieve it.
+Also, If we simply push every single message as a seperated block into hypercore. The overhead is big: 144 bytes per message for 100000 messages. Therefore we need batching.
 
 #### This is basic messaging! How about MQTT/RabbitMQ/ZeroMQ...or any other message queue?
 
