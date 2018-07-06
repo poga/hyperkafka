@@ -54,7 +54,7 @@ You can specify timestamp for the message. The timestamp should be a `uint64be` 
 
 Returns an array of topics
 
-#### `p.on('flush', cb(segmentSize, flushedTopci))
+#### `p.on('flush', cb(segmentSize, flushedTopci))`
 
 Producer will emit `flush` event when a segment is flushed into hyperdrive.
 
@@ -78,6 +78,12 @@ Returns an array of topics
 
 
 ## FAQ
+
+#### Why?
+
+Event-sourcing is a popular pattern for building large-scale high-performance system. It's also a simple and extensible software architecture.
+
+By utilizing the well-designed Kafka's API, we can make developing P2P app simpler and easier to reason.
 
 #### This is just append-only log! Why not just use hypercore?
 
